@@ -1,0 +1,46 @@
+version: "3"
+
+services:
+  db:
+    image: postgres # use the latest official postgres version
+    env_file:
+      - .env/db.env # configure postgres
+    ports:
+      - "${POSTGRES_HOST}:${POSTGRES_PORT}:5432" # map a port on the local machine to the port 5432
+    volumes:
+      - pgdata:/var/lib/postgresql/data # persist data on the host machine even if the container gets destroyed.
+    networks:
+      - blognet
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1024k"
+        max-file: "5"
+
+  app:
+    depends_on:
+      - db
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    restart: always
+    networks:
+      - blognet
+    env_file:
+      - .env/db.env # configure postgres
+      - .env/app.env # configure application
+    ports:
+      - "${APP_HOST}:${APP_PORT}:8000"
+    volumes:
+      - .:/code
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1024k"
+        max-file: "5"
+
+volumes:
+  pgdata:
+
+networks:
+  blognet:
