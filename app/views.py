@@ -4,10 +4,11 @@ from django.core.paginator import Paginator, EmptyPage, \
     PageNotAnInteger
 
 from django.views.generic import ListView
-from .forms import EmailPostForm, CommentForm
+from .forms import EmailPostForm, CommentForm, SearchForm
 from django.core.mail import send_mail
 from taggit.models import Tag
 from django.db.models import Count, Subquery
+from django.contrib.postgres.search import SearchVector, SearchRank, SearchQuery
 
 
 class PostListView(ListView):
@@ -71,9 +72,9 @@ def post_detail(request, year, month, day, post_slug):
     # List of similar posts
     post_tags_ids = post.tags.values('id')
     similar_posts = Post.published_posts.filter(tags__in=Subquery(post_tags_ids)) \
-        .exclude(id=post.id) \
-        .annotate(same_tags_count=Count('tags')) \
-        .order_by('-same_tags_count', '-published')[:4]
+                        .exclude(id=post.id) \
+                        .annotate(same_tags_count=Count('tags')) \
+                        .order_by('-same_tags_count', '-published')[:4]
 
     return render(
         request,
@@ -121,3 +122,39 @@ def post_share(request, post_id):
                       'sent': sent
                   }
                   )
+
+
+def post_search(request):
+    form = SearchForm()
+    query = None
+    results = []
+    if 'query' in request.GET:
+        form = SearchForm(request.GET)
+        if form.is_valid():
+            query = form.cleaned_data['query']
+            # results = Post.published_posts.annotate(
+            #     search=SearchVector('title', 'body')
+            # ).filter(search=query)
+            #
+            # search_vector = SearchVector('title', 'body')
+            # search_query = SearchQuery(query)
+            # results = Post.published_posts.annotate(
+            #     search=search_vector,
+            #     rank=SearchRank(search_vector, search_query)
+            # ).filter(search=search_query).order_by('-rank')
+            #
+            search_vector = SearchVector('title', weight='A') + \
+                SearchVector('body', weight='B')
+            search_query = SearchQuery(query)
+            results = Post.published_posts.annotate(
+                rank=SearchRank(search_vector, search_query)
+            ).filter(rank__gte=0.3).order_by('-rank')
+    return render(
+        request,
+        'app/post/search.html',
+        {
+            'form': form,
+            'query': query,
+            'results': results,
+        }
+    )
