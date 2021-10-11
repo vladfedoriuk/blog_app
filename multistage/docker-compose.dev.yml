@@ -1,0 +1,7 @@
+version: "3"
+
+services:
+  app:
+    image: blog_dev
+    ports:
+      - "${APP_HOST}:${APP_PORT}:8000"
