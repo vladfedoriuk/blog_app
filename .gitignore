@@ -1,0 +1,6 @@
+.env/
+.idea/
+app/__pycache__/
+app/migrations/__pycache__/
+app/templatetags/__pycache__/
+blog/__pycache__/
